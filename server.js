@@ -30,10 +30,10 @@ app.use(session({
 }));
 
 const dbConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'ecommerce_db',
+    host: process.env.MYSQL_HOST || 'localhost',
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || '',
+    database: process.env.MYSQL_DATABASE || 'ecommerce_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
