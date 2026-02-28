@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - ShopEasy</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">ShopEasy</h1>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="login.html" class="nav-link">Login</a>
+                <a href="signup.html" class="nav-link">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="form-container">
+            <h2>Create Your Account</h2>
+            <form id="signupForm">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="userid">User ID</label>
+                    <input type="text" id="userid" name="userid" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required>
+                </div>
+                <div class="form-group">
+                    <label for="user_type">Account Type</label>
+                    <select id="user_type" name="user_type" required>
+                        <option value="">Select Account Type</option>
+                        <option value="customer">Customer</option>
+                        <option value="vendor">Vendor</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
+            </form>
+            <p style="text-align: center; margin-top: 1rem;">
+                Already have an account? <a href="login.html" style="color: #667eea;">Login here</a>
+            </p>
+        </div>
+    </main>
+
+
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            
+            if (password !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            
+            fetch('/api/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: formData.get('name'),
+                    userid: formData.get('userid'),
+                    password: formData.get('password'),
+                    user_type: formData.get('user_type')
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Account created successfully! Please login.');
+                    window.location.href = 'login.html';
+                } else {
+                    alert(data.message || 'Signup failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during signup');
+            });
+        });
+    </script>
+</body>
+</html>

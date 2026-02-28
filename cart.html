@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Cart - ShopEasy</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">ShopEasy</h1>
+            <div class="nav-menu">
+                <a href="customer-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="products.html" class="nav-link">Products</a>
+                <a href="cart.html" class="nav-link">Cart</a>
+                <a href="logout.html" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="dashboard">
+                <div class="dashboard-header">
+                    <h2>Shopping Cart</h2>
+                    <p>Review your items and proceed to checkout.</p>
+                </div>
+
+                <div id="cartItems">
+                    <p>Loading cart...</p>
+                </div>
+
+                <div class="cart-total" id="cartTotal" style="display: none;">
+                    <h3>Order Summary</h3>
+                    <div class="total-amount" id="totalAmount">₹0.00</div>
+                    <button onclick="placeOrder()" class="btn btn-success" id="placeOrderBtn">Place Order</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <script>
+
+        fetch('/api/check-session')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.logged_in || data.user_type !== 'customer') {
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                window.location.href = 'login.html';
+            });
+
+
+        function loadCart() {
+            fetch('/api/cart',  {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+    })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayCartItems(data.cart_items);
+                    } else {
+                        document.getElementById('cartItems').innerHTML = '<p>Error loading cart. Please try again.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading cart:', error);
+                    document.getElementById('cartItems').innerHTML = '<p>Error loading cart. Please try again.</p>';
+                });
+        }
+
+
+        function displayCartItems(cartItems) {
+            const container = document.getElementById('cartItems');
+            const totalContainer = document.getElementById('cartTotal');
+            const totalAmountElement = document.getElementById('totalAmount');
+
+            if (cartItems.length === 0) {
+                container.innerHTML = '<p>Your cart is empty. <a href="products.html">Browse products</a></p>';
+                totalContainer.style.display = 'none';
+            } else {
+                let totalAmount = 0;
+                
+                container.innerHTML = cartItems.map(item => {
+                    const itemTotal = item.price * item.quantity;
+                    totalAmount += itemTotal;
+                    
+                    return `
+                        <div class="cart-item">
+                            <div class="cart-item-info">
+                                <h4>${item.name}</h4>
+                                <p>Price: ₹${item.price}</p>
+                                <p>Category: ${item.category}</p>
+                                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                                    <label>Quantity:</label>
+                                    <input type="number" value="${item.quantity}" min="1" max="${item.stock_quantity}" 
+                                           onchange="updateQuantity(${item.product_id}, this.value)" 
+                                           style="width: 60px; padding: 5px;">
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <p><strong>Total: ₹${itemTotal.toFixed(2)}</strong></p>
+                                <button onclick="removeFromCart(${item.product_id})" class="btn btn-danger" style="margin-top: 0.5rem;">Remove</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                totalAmountElement.textContent = `₹${totalAmount.toFixed(2)}`;
+                totalContainer.style.display = 'block';
+            }
+        }
+
+
+        function updateQuantity(productId, quantity) {
+            if (quantity < 1) {
+                alert('Quantity must be at least 1');
+                loadCart();
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('product_id', productId);
+            formData.append('quantity', quantity);
+
+            fetch('/api/cart', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity: quantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadCart();
+                } else {
+                    alert(data.message || 'Failed to update quantity');
+                    loadCart();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating quantity');
+                loadCart();
+            });
+        }
+
+
+        function removeFromCart(productId) {
+            if (confirm('Are you sure you want to remove this item from your cart?')) {
+                const formData = new FormData();
+                formData.append('product_id', productId);
+
+                fetch(`/api/cart/${productId}`, {
+                    method: 'DELETE',
+                    headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Item removed from cart');
+                        loadCart();
+                    } else {
+                        alert(data.message || 'Failed to remove item');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while removing the item');
+                });
+            }
+        }
+
+
+        function placeOrder() {
+            if (confirm('Are you sure you want to place this order?')) {
+                fetch('/api/orders', {
+                    method: 'POST',
+                     headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Order placed successfully! Order ID: ' + data.order_id);
+                        loadCart();
+                    } else {
+                        alert(data.message || 'Failed to place order');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while placing the order');
+                });
+            }
+        }
+
+
+        loadCart();
+    </script>
+</body>
+</html>

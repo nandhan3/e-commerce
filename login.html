@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - ShopEasy</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">ShopEasy</h1>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="login.html" class="nav-link">Login</a>
+                <a href="signup.html" class="nav-link">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="form-container">
+            <h2>Login to Your Account</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="userid">User ID</label>
+                    <input type="text" id="userid" name="userid" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="user_type">Login As</label>
+                    <select id="user_type" name="user_type" required>
+                        <option value="">Select User Type</option>
+                        <option value="customer">Customer</option>
+                        <option value="vendor">Vendor</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            </form>
+            <p style="text-align: center; margin-top: 1rem;">
+                Don't have an account? <a href="signup.html" style="color: #667eea;">Sign up here</a>
+            </p>
+        </div>
+    </main>
+
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    userid: formData.get('userid'),
+                    password: formData.get('password'),
+                    user_type: formData.get('user_type')
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    
+                    localStorage.setItem('user', JSON.stringify({
+                        id: data.user_id,
+                        name: data.user_name,
+                        user_type: data.user_type,
+                        userid: data.userid
+                    }));
+                    localStorage.setItem('token', data.token);
+                    
+                    if (data.user_type === 'vendor') {
+                        window.location.href = 'vendor-dashboard.html';
+                    } else {
+                        window.location.href = 'customer-dashboard.html';
+                    }
+                } else {
+                    alert(data.message || 'Login failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during login');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Products - ShopEasy</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">ShopEasy</h1>
+            <div class="nav-menu">
+                <a href="vendor-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="vendor-products.html" class="nav-link">My Products</a>
+                <a href="logout.html" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="dashboard">
+                <div class="dashboard-header">
+                    <h2>My Products</h2>
+                    <p>Manage all your products here.</p>
+                </div>
+
+                <div class="products-grid" id="productsGrid">
+                    <p>Loading products...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <script>
+
+        fetch('/api/check-session')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.logged_in || data.user_type !== 'vendor') {
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                window.location.href = 'login.html';
+            });
+
+
+        function loadProducts() {
+            fetch('/api/vendor/products')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('productsGrid');
+                        if (data.products.length === 0) {
+                            container.innerHTML = '<p>No products found. <a href="vendor-dashboard.html">Add your first product</a></p>';
+                        } else {
+                            container.innerHTML = data.products.map(product => `
+                                <div class="product-card">
+                                    <div class="product-image">
+                                        ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}">` : 'No Image'}
+                                    </div>
+                                    <div class="product-info">
+                                        <h4 class="product-name">${product.name}</h4>
+                                        <p class="product-price">₹${product.price}</p>
+                                        <p class="product-description">${product.description}</p>
+                                        <p><strong>Category:</strong> ${product.category}</p>
+                                        <p><strong>Stock:</strong> ${product.stock_quantity}</p>
+                                        <p><strong>Added:</strong> ${new Date(product.created_at).toLocaleDateString()}</p>
+                                        <div style="margin-top: 1rem;">
+                                            <button onclick="editProduct(${product.id})" class="btn btn-primary" style="margin-right: 0.5rem;">Edit</button>
+                                            <button onclick="deleteProduct(${product.id})" class="btn btn-danger">Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading products:', error);
+                    document.getElementById('productsGrid').innerHTML = '<p>Error loading products. Please try again.</p>';
+                });
+        }
+
+
+        function editProduct(productId) {
+            const newName = prompt('Enter new product name:');
+            if (newName) {
+                const newPrice = prompt('Enter new price:');
+                if (newPrice && !isNaN(newPrice)) {
+                    const newStock = prompt('Enter new stock quantity:');
+                    if (newStock && !isNaN(newStock)) {
+                        const formData = new FormData();
+                        formData.append('product_id', productId);
+                        formData.append('name', newName);
+                        formData.append('price', newPrice);
+                        formData.append('stock_quantity', newStock);
+
+                        fetch(`/api/vendor/products/${productId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                name: newName,
+                                price: parseFloat(newPrice),
+                                stock_quantity: parseInt(newStock)
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Product updated successfully!');
+                                loadProducts();
+                            } else {
+                                alert(data.message || 'Failed to update product');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while updating the product');
+                        });
+                    }
+                }
+            }
+        }
+
+
+        function deleteProduct(productId) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                const formData = new FormData();
+                formData.append('product_id', productId);
+
+                fetch(`/api/vendor/products/${productId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Product deleted successfully!');
+                        loadProducts();
+                    } else {
+                        alert(data.message || 'Failed to delete product');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the product');
+                });
+            }
+        }
+
+
+        loadProducts();
+    </script>
+</body>
+</html>

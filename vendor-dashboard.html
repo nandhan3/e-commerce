@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Dashboard - ShopEasy</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">ShopEasy</h1>
+            <div class="nav-menu">
+                <a href="vendor-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="vendor-products.html" class="nav-link">My Products</a>
+                <a href="logout.html" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="dashboard">
+                <div class="dashboard-header">
+                    <h2>Vendor Dashboard</h2>
+                    <p>Welcome back! Manage your products and track your sales.</p>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h3>Add New Product</h3>
+                        <form id="addProductForm">
+                            <div class="form-group">
+                                <label for="product_name">Product Name</label>
+                                <input type="text" id="product_name" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="product_description">Description</label>
+                                <textarea id="product_description" name="description" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="product_price">Price (₹)</label>
+                                <input type="number" id="product_price" name="price" step="0.01" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="product_category">Category</label>
+                                <input type="text" id="product_category" name="category" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="product_stock">Stock Quantity</label>
+                                <input type="number" id="product_stock" name="stock_quantity" min="0" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Product</button>
+                        </form>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <h3>Quick Stats</h3>
+                        <div id="vendorStats">
+                            <p>Loading statistics...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-card" style="margin-top: 2rem;">
+                    <h3>Recent Products</h3>
+                    <div id="recentProducts">
+                        <p>Loading products...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <script>
+
+        // Check if user is logged in via localStorage
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!user || user.user_type !== 'vendor') {
+            window.location.href = 'login.html';
+        }
+
+
+        document.getElementById('addProductForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            const token = localStorage.getItem('token');
+            fetch('/api/vendor/products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: formData.get('name'),
+                    description: formData.get('description'),
+                    price: parseFloat(formData.get('price')),
+                    category: formData.get('category'),
+                    stock_quantity: parseInt(formData.get('stock_quantity'))
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Product added successfully!');
+                    this.reset();
+                    loadRecentProducts();
+                    loadVendorStats();
+                } else {
+                    alert(data.message || 'Failed to add product');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while adding the product');
+            });
+        });
+
+
+        function loadRecentProducts() {
+            const token = localStorage.getItem('token');
+            fetch('/api/vendor/products', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('recentProducts');
+                        if (data.products.length === 0) {
+                            container.innerHTML = '<p>No products added yet.</p>';
+                        } else {
+                            container.innerHTML = data.products.map(product => `
+                                <div class="product-card" style="margin-bottom: 1rem;">
+                                    <div class="product-info">
+                                        <h4 class="product-name">${product.name}</h4>
+                                        <p class="product-price">₹${product.price}</p>
+                                        <p class="product-description">${product.description}</p>
+                                        <p><strong>Category:</strong> ${product.category}</p>
+                                        <p><strong>Stock:</strong> ${product.stock_quantity}</p>
+                                    </div>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading products:', error);
+                });
+        }
+
+
+        function loadVendorStats() {
+            const token = localStorage.getItem('token');
+            fetch('/api/vendor/stats', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('vendorStats').innerHTML = `
+                            <p><strong>Total Products:</strong> ${data.total_products}</p>
+                            <p><strong>Total Stock:</strong> ${data.total_stock}</p>
+                            <p><strong>Average Price:</strong> ₹${data.average_price}</p>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading stats:', error);
+                });
+        }
+
+
+        loadRecentProducts();
+        loadVendorStats();
+    </script>
+</body>
+</html>
