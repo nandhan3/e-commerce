@@ -65,7 +65,15 @@
                     user_type: formData.get('user_type')
                 })
             })
-            .then(response => response.json())
+            .then(async response => {
+                const text = await response.text();
+                if (!text) throw new Error('Empty response from server');
+                try { return JSON.parse(text); } catch (_) {
+                    throw new Error(response.status === 405
+                        ? 'Wrong URL: open this site from http://localhost:3000/login (not Live Server).'
+                        : 'Server error: ' + (response.status || 'no response'));
+                }
+            })
             .then(data => {
                 if (data.success) {
                     
@@ -88,7 +96,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred during login');
+                alert(error.message || 'An error occurred during login');
             });
         });
     </script>
