@@ -16,15 +16,16 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
 let supabase = null;
 if (SUPABASE_URL && SUPABASE_KEY) {
-    // validate URL begins with http/https before creating client
-    if (!/^https?:\/\//i.test(SUPABASE_URL)) {
-        console.warn('Supabase client initialization warning: SUPABASE_URL does not look like a http(s) URL');
-    } else {
-        try {
-            supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-        } catch (err) {
-            console.warn('Supabase client initialization error:', err.message);
-        }
+    let sanitizedUrl = SUPABASE_URL;
+    // if the user forgot protocol, add https:// automatically
+    if (!/^https?:\/\//i.test(sanitizedUrl)) {
+        console.warn('Supabase client initialization warning: SUPABASE_URL missing http(s) prefix, adding https://');
+        sanitizedUrl = 'https://' + sanitizedUrl;
+    }
+    try {
+        supabase = createClient(sanitizedUrl, SUPABASE_KEY);
+    } catch (err) {
+        console.warn('Supabase client initialization error:', err.message);
     }
 } // else: supabase vars missing - don't warn to keep local dev clean
 
