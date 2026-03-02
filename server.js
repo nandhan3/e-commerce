@@ -16,7 +16,11 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
 let supabase = null;
 if (SUPABASE_URL && SUPABASE_KEY) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    try {
+        supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch (err) {
+        console.warn('Supabase client initialization error:', err.message);
+    }
 } else {
     console.warn('Supabase not configured: set SUPABASE_URL and SUPABASE_KEY in environment');
 }
@@ -38,6 +42,21 @@ app.use(cors({
     origin: ['http://localhost:3000', 'http://localhost:5500', 'http://localhost:8080', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://127.0.0.1:8080'],
     credentials: true
 }));
+
+// Explicit MIME type middleware for static files
+app.use((req, res, next) => {
+    if (req.url.endsWith('.css')) {
+        res.type('text/css');
+    } else if (req.url.endsWith('.js')) {
+        res.type('text/javascript');
+    } else if (req.url.endsWith('.html')) {
+        res.type('text/html');
+    } else if (req.url.endsWith('.json')) {
+        res.type('application/json');
+    }
+    next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('.'));
@@ -720,39 +739,63 @@ app.post('/api/supabase/sql', authenticateToken, async (req, res) => {
 
 
 app.get('/', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/login', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 app.get('/signup', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'signup.html'));
 });
 
 app.get('/vendor-dashboard', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'vendor-dashboard.html'));
 });
 
 app.get('/vendor-products', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'vendor-products.html'));
 });
 
 app.get('/customer-dashboard', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'customer-dashboard.html'));
 });
 
 app.get('/products', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'products.html'));
 });
 
 app.get('/cart', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'cart.html'));
 });
 
 app.get('/logout', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'logout.html'));
+});
+
+app.get('/sql-editor', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Content-Type', 'text/html');
+    res.sendFile(path.join(__dirname, 'sql-editor.html'));
 });
 
 
