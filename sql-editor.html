@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Supabase SQL Editor</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; padding: 16px; }
+    textarea { width: 100%; height: 200px; font-family: monospace; }
+    pre { background: #f6f8fa; padding: 12px; overflow: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h2>Supabase SQL Editor (SELECT only)</h2>
+  <p>Provide a JWT token (from login) or press <em>Use session</em> to send same-site session cookie.</p>
+  <label>JWT Token: <input id="token" style="width:60%" placeholder="Paste token or leave blank to use session cookie"></label>
+  <button id="use-session">Use session</button>
+  <div style="margin-top:12px">
+    <textarea id="sql" placeholder="SELECT * FROM products LIMIT 10;"></textarea>
+  </div>
+  <div style="margin-top:8px">
+    <button id="run">Run</button>
+    <button id="clear">Clear</button>
+  </div>
+  <h3>Result</h3>
+  <div id="result"></div>
+
+<script>
+async function runSql() {
+  const sql = document.getElementById('sql').value;
+  const token = document.getElementById('token').value.trim();
+  if (!sql.trim()) return alert('Enter SQL');
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  const resEl = document.getElementById('result');
+  resEl.textContent = 'Running...';
+
+  try {
+    const resp = await fetch('/api/supabase/sql', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ sql })
+    });
+
+    const data = await resp.json();
+    if (!data.success) {
+      resEl.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+      return;
+    }
+
+    if (Array.isArray(data.rows) && data.rows.length > 0) {
+      const fields = data.fields || Object.keys(data.rows[0]);
+      let html = '<table><thead><tr>' + fields.map(f=>'<th>'+escapeHtml(f)+'</th>').join('') + '</tr></thead><tbody>';
+      for (const row of data.rows) {
+        html += '<tr>' + fields.map(f=>'<td>'+escapeHtml(String(row[f] ?? ''))+'</td>').join('') + '</tr>';
+      }
+      html += '</tbody></table>';
+      resEl.innerHTML = html;
+    } else {
+      resEl.innerHTML = '<pre>No rows returned.</pre>';
+    }
+  } catch (err) {
+    resEl.innerHTML = '<pre>' + escapeHtml(String(err)) + '</pre>';
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>\"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; });
+}
+
+document.getElementById('run').addEventListener('click', runSql);
+document.getElementById('clear').addEventListener('click', ()=>{ document.getElementById('sql').value=''; document.getElementById('result').innerHTML=''; });
+document.getElementById('use-session').addEventListener('click', ()=>{ document.getElementById('token').value = ''; alert('Using same-site session cookie for authentication (if present)'); });
+</script>
+</body>
+</html>

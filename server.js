@@ -6,6 +6,31 @@ const cors = require('cors');
 const session = require('express-session');
 const path = require('path');
 
+// Load environment variables from .env (user should create .env with SUPABASE_URL and SUPABASE_KEY)
+require('dotenv').config();
+
+const { createClient } = require('@supabase/supabase-js');
+
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
+
+let supabase = null;
+if (SUPABASE_URL && SUPABASE_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+} else {
+    console.warn('Supabase not configured: set SUPABASE_URL and SUPABASE_KEY in environment');
+}
+
+// Optional: direct Postgres connection for executing arbitrary (or limited) SQL against the Supabase DB.
+// To enable, set SUPABASE_DB_URL (postgres connection string) and SUPABASE_SERVICE_ROLE (for logging/checking purpose).
+const { Pool } = require('pg');
+let pgPool = null;
+if (process.env.SUPABASE_DB_URL && process.env.SUPABASE_SERVICE_ROLE) {
+    pgPool = new Pool({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
+} else {
+    console.warn('Postgres pool not configured: set SUPABASE_DB_URL and SUPABASE_SERVICE_ROLE in environment to enable SQL execution');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -653,6 +678,43 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Place order error:', error);
         res.json({ success: false, message: 'Error placing order' });
+    }
+});
+
+// Supabase status endpoint — returns whether env vars are present and client initialized.
+app.get('/api/supabase/status', (req, res) => {
+    const configured = !!(SUPABASE_URL && SUPABASE_KEY && supabase);
+    res.json({ success: true, configured, url_present: !!SUPABASE_URL });
+});
+
+// Execute SQL against Supabase Postgres (server-side). This endpoint only allows SELECT queries by default.
+// Requires authentication via `authenticateToken` and a configured `SUPABASE_DB_URL`.
+app.post('/api/supabase/sql', authenticateToken, async (req, res) => {
+    try {
+        if (!pgPool) return res.status(500).json({ success: false, message: 'SQL execution not configured on server' });
+
+        // Only allow certain user types to run queries (adjust as needed)
+        if (!req.user || req.user.user_type !== 'vendor') {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        const { sql } = req.body;
+        if (!sql || typeof sql !== 'string') return res.status(400).json({ success: false, message: 'SQL query required' });
+
+        // Safety: only allow SELECT queries from the web SQL editor by default
+        const isSelect = /^\s*SELECT\b/i.test(sql);
+        if (!isSelect) return res.status(403).json({ success: false, message: 'Only SELECT queries are allowed via this editor' });
+
+        const client = await pgPool.connect();
+        try {
+            const result = await client.query(sql);
+            res.json({ success: true, rows: result.rows, fields: result.fields.map(f => f.name) });
+        } finally {
+            client.release();
+        }
+    } catch (err) {
+        console.error('Supabase SQL execution error:', err);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
