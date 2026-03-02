@@ -63,8 +63,8 @@ CREATE TABLE order_items (
 
 
 INSERT INTO users (name, userid, password, user_type) VALUES
-('John Customer', 'john_customer', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer'),
-('Jane Vendor', 'jane_vendor', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'vendor');
+('John Customer', 'john_customer', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'customer'),
+('Jane Vendor', 'jane_vendor', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'vendor');
 
 
 INSERT INTO products (vendor_id, name, description, price, category, stock_quantity) VALUES

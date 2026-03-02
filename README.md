@@ -132,9 +132,10 @@ ecommerce-website/
 
 ## Security Features
 
-- Password hashing with bcrypt
-- JWT token authentication
-- Session management
+- Password hashing with bcryptjs
+- JWT token authentication (secret configurable via `JWT_SECRET` env var)
+- Session management (secret configurable via `SESSION_SECRET` env var)
+- XSS protection via HTML escaping on all user-generated content
 - Input validation
 - SQL injection prevention with parameterized queries
 

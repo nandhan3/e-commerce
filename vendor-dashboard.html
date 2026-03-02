@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vendor Dashboard - ShopEasy</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <nav class="navbar">
         <div class="nav-container">
@@ -75,6 +77,13 @@
 
     <script>
 
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
         // Check if user is logged in via localStorage
         const user = JSON.parse(localStorage.getItem('user') || 'null');
         if (!user || user.user_type !== 'vendor') {
@@ -82,11 +91,11 @@
         }
 
 
-        document.getElementById('addProductForm').addEventListener('submit', function(e) {
+        document.getElementById('addProductForm').addEventListener('submit', function (e) {
             e.preventDefault();
-            
+
             const formData = new FormData(this);
-            
+
             const token = localStorage.getItem('token');
             fetch('/api/vendor/products', {
                 method: 'POST',
@@ -102,21 +111,21 @@
                     stock_quantity: parseInt(formData.get('stock_quantity'))
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Product added successfully!');
-                    this.reset();
-                    loadRecentProducts();
-                    loadVendorStats();
-                } else {
-                    alert(data.message || 'Failed to add product');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while adding the product');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Product added successfully!');
+                        this.reset();
+                        loadRecentProducts();
+                        loadVendorStats();
+                    } else {
+                        alert(data.message || 'Failed to add product');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while adding the product');
+                });
         });
 
 
@@ -137,11 +146,11 @@
                             container.innerHTML = data.products.map(product => `
                                 <div class="product-card" style="margin-bottom: 1rem;">
                                     <div class="product-info">
-                                        <h4 class="product-name">${product.name}</h4>
-                                        <p class="product-price">₹${product.price}</p>
-                                        <p class="product-description">${product.description}</p>
-                                        <p><strong>Category:</strong> ${product.category}</p>
-                                        <p><strong>Stock:</strong> ${product.stock_quantity}</p>
+                                        <h4 class="product-name">${escapeHtml(product.name)}</h4>
+                                        <p class="product-price">₹${escapeHtml(product.price)}</p>
+                                        <p class="product-description">${escapeHtml(product.description)}</p>
+                                        <p><strong>Category:</strong> ${escapeHtml(product.category)}</p>
+                                        <p><strong>Stock:</strong> ${escapeHtml(product.stock_quantity)}</p>
                                     </div>
                                 </div>
                             `).join('');
@@ -181,4 +190,5 @@
         loadVendorStats();
     </script>
 </body>
+
 </html>

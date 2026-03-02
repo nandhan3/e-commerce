@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopping Cart - ShopEasy</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <nav class="navbar">
         <div class="nav-container">
@@ -43,25 +45,26 @@
 
     <script>
 
-        fetch('/api/check-session')
-            .then(response => response.json())
-            .then(data => {
-                if (!data.logged_in || data.user_type !== 'customer') {
-                    window.location.href = 'login.html';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                window.location.href = 'login.html';
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
             });
+        }
+
+        // Check if user is logged in via localStorage
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!user || user.user_type !== 'customer') {
+            window.location.href = 'login.html';
+        }
 
 
         function loadCart() {
-            fetch('/api/cart',  {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-    })
+            fetch('/api/cart', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -87,17 +90,17 @@
                 totalContainer.style.display = 'none';
             } else {
                 let totalAmount = 0;
-                
+
                 container.innerHTML = cartItems.map(item => {
                     const itemTotal = item.price * item.quantity;
                     totalAmount += itemTotal;
-                    
+
                     return `
                         <div class="cart-item">
                             <div class="cart-item-info">
-                                <h4>${item.name}</h4>
-                                <p>Price: ₹${item.price}</p>
-                                <p>Category: ${item.category}</p>
+                                <h4>${escapeHtml(item.name)}</h4>
+                                <p>Price: ₹${escapeHtml(item.price)}</p>
+                                <p>Category: ${escapeHtml(item.category)}</p>
                                 <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
                                     <label>Quantity:</label>
                                     <input type="number" value="${item.quantity}" min="1" max="${item.stock_quantity}" 
@@ -141,20 +144,20 @@
                     quantity: quantity
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadCart();
+                    } else {
+                        alert(data.message || 'Failed to update quantity');
+                        loadCart();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while updating quantity');
                     loadCart();
-                } else {
-                    alert(data.message || 'Failed to update quantity');
-                    loadCart();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while updating quantity');
-                loadCart();
-            });
+                });
         }
 
 
@@ -166,22 +169,22 @@
                 fetch(`/api/cart/${productId}`, {
                     method: 'DELETE',
                     headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Item removed from cart');
-                        loadCart();
-                    } else {
-                        alert(data.message || 'Failed to remove item');
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while removing the item');
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Item removed from cart');
+                            loadCart();
+                        } else {
+                            alert(data.message || 'Failed to remove item');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while removing the item');
+                    });
             }
         }
 
@@ -190,24 +193,24 @@
             if (confirm('Are you sure you want to place this order?')) {
                 fetch('/api/orders', {
                     method: 'POST',
-                     headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Order placed successfully! Order ID: ' + data.order_id);
-                        loadCart();
-                    } else {
-                        alert(data.message || 'Failed to place order');
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while placing the order');
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Order placed successfully! Order ID: ' + data.order_id);
+                            loadCart();
+                        } else {
+                            alert(data.message || 'Failed to place order');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while placing the order');
+                    });
             }
         }
 
@@ -215,4 +218,5 @@
         loadCart();
     </script>
 </body>
+
 </html>

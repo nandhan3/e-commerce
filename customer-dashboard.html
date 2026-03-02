@@ -45,6 +45,13 @@
                 </div>
 
                 <div class="dashboard-card" style="margin-top: 2rem;">
+                    <h3>Order History</h3>
+                    <div id="orderHistory">
+                        <p>Loading orders...</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-card" style="margin-top: 2rem;">
                     <h3>Featured Products</h3>
                     <div id="featuredProducts">
                         <p>Loading products...</p>
@@ -56,6 +63,13 @@
 
 
     <script>
+
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/[&<>"']/g, function(c) {
+                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+            });
+        }
 
         // Check if user is logged in via localStorage
         const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -94,6 +108,37 @@
         }
 
 
+        function loadOrderHistory() {
+            const token = localStorage.getItem('token');
+            fetch('/api/orders', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('orderHistory');
+                    if (data.success && data.orders.length > 0) {
+                        container.innerHTML = data.orders.map(order => `
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                                <p><strong>Order #${escapeHtml(order.id)}</strong> — ${escapeHtml(order.status)}</p>
+                                <p>Total: ₹${escapeHtml(order.total_amount)}</p>
+                                <p style="font-size: 0.85rem; color: #666;">Date: ${new Date(order.order_date).toLocaleDateString()}</p>
+                                <ul style="margin-top: 0.5rem; padding-left: 1.2rem;">
+                                    ${order.items.map(item => `<li>${escapeHtml(item.product_name)} x${escapeHtml(item.quantity)} — ₹${escapeHtml(item.price)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `).join('');
+                    } else {
+                        container.innerHTML = '<p>No orders yet. <a href="products.html">Browse products</a></p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading orders:', error);
+                });
+        }
+
+
         function loadFeaturedProducts() {
             fetch('/api/products?limit=4')
                 .then(response => response.json())
@@ -106,12 +151,12 @@
                             container.innerHTML = data.products.map(product => `
                                 <div class="product-card" style="margin-bottom: 1rem;">
                                     <div class="product-image">
-                                        ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}">` : 'No Image'}
+                                        ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">` : 'No Image'}
                                     </div>
                                     <div class="product-info">
-                                        <h4 class="product-name">${product.name}</h4>
-                                        <p class="product-price">₹${product.price}</p>
-                                        <p class="product-description">${product.description}</p>
+                                        <h4 class="product-name">${escapeHtml(product.name)}</h4>
+                                        <p class="product-price">₹${escapeHtml(product.price)}</p>
+                                        <p class="product-description">${escapeHtml(product.description)}</p>
                                         <button onclick="addToCart(${product.id})" class="btn btn-primary">Add to Cart</button>
                                     </div>
                                 </div>
@@ -126,10 +171,6 @@
 
 
         function addToCart(productId) {
-            const formData = new FormData();
-            formData.append('product_id', productId);
-            formData.append('quantity', 1);
-
             const token = localStorage.getItem('token');
             fetch('/api/cart', {
                 method: 'POST',
@@ -159,6 +200,7 @@
 
 
         loadCartSummary();
+        loadOrderHistory();
         loadFeaturedProducts();
     </script>
 </body>

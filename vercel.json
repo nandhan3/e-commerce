@@ -8,6 +8,13 @@
   ],
   "routes": [
     {
+      "src": "/styles\\.css",
+      "dest": "server.js",
+      "headers": {
+        "Content-Type": "text/css; charset=utf-8"
+      }
+    },
+    {
       "src": "/api/(.*)",
       "dest": "server.js"
     },

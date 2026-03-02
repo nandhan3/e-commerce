@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Products - ShopEasy</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <nav class="navbar">
         <div class="nav-container">
@@ -36,21 +38,27 @@
 
     <script>
 
-        fetch('/api/check-session')
-            .then(response => response.json())
-            .then(data => {
-                if (!data.logged_in || data.user_type !== 'vendor') {
-                    window.location.href = 'login.html';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                window.location.href = 'login.html';
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
             });
+        }
+
+        // Check if user is logged in via localStorage
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!user || user.user_type !== 'vendor') {
+            window.location.href = 'login.html';
+        }
 
 
         function loadProducts() {
-            fetch('/api/vendor/products')
+            const token = localStorage.getItem('token');
+            fetch('/api/vendor/products', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -61,14 +69,14 @@
                             container.innerHTML = data.products.map(product => `
                                 <div class="product-card">
                                     <div class="product-image">
-                                        ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}">` : 'No Image'}
+                                        ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}">` : 'No Image'}
                                     </div>
                                     <div class="product-info">
-                                        <h4 class="product-name">${product.name}</h4>
-                                        <p class="product-price">₹${product.price}</p>
-                                        <p class="product-description">${product.description}</p>
-                                        <p><strong>Category:</strong> ${product.category}</p>
-                                        <p><strong>Stock:</strong> ${product.stock_quantity}</p>
+                                        <h4 class="product-name">${escapeHtml(product.name)}</h4>
+                                        <p class="product-price">₹${escapeHtml(product.price)}</p>
+                                        <p class="product-description">${escapeHtml(product.description)}</p>
+                                        <p><strong>Category:</strong> ${escapeHtml(product.category)}</p>
+                                        <p><strong>Stock:</strong> ${escapeHtml(product.stock_quantity)}</p>
                                         <p><strong>Added:</strong> ${new Date(product.created_at).toLocaleDateString()}</p>
                                         <div style="margin-top: 1rem;">
                                             <button onclick="editProduct(${product.id})" class="btn btn-primary" style="margin-right: 0.5rem;">Edit</button>
@@ -94,16 +102,12 @@
                 if (newPrice && !isNaN(newPrice)) {
                     const newStock = prompt('Enter new stock quantity:');
                     if (newStock && !isNaN(newStock)) {
-                        const formData = new FormData();
-                        formData.append('product_id', productId);
-                        formData.append('name', newName);
-                        formData.append('price', newPrice);
-                        formData.append('stock_quantity', newStock);
-
+                        const token = localStorage.getItem('token');
                         fetch(`/api/vendor/products/${productId}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
                             },
                             body: JSON.stringify({
                                 name: newName,
@@ -111,19 +115,19 @@
                                 stock_quantity: parseInt(newStock)
                             })
                         })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert('Product updated successfully!');
-                                loadProducts();
-                            } else {
-                                alert(data.message || 'Failed to update product');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('An error occurred while updating the product');
-                        });
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert('Product updated successfully!');
+                                    loadProducts();
+                                } else {
+                                    alert(data.message || 'Failed to update product');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('An error occurred while updating the product');
+                            });
                     }
                 }
             }
@@ -132,25 +136,26 @@
 
         function deleteProduct(productId) {
             if (confirm('Are you sure you want to delete this product?')) {
-                const formData = new FormData();
-                formData.append('product_id', productId);
-
+                const token = localStorage.getItem('token');
                 fetch(`/api/vendor/products/${productId}`, {
-                    method: 'DELETE'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Product deleted successfully!');
-                        loadProducts();
-                    } else {
-                        alert(data.message || 'Failed to delete product');
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while deleting the product');
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Product deleted successfully!');
+                            loadProducts();
+                        } else {
+                            alert(data.message || 'Failed to delete product');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while deleting the product');
+                    });
             }
         }
 
@@ -158,4 +163,5 @@
         loadProducts();
     </script>
 </body>
+
 </html>
