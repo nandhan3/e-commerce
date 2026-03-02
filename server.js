@@ -43,23 +43,22 @@ app.use(cors({
     credentials: true
 }));
 
-// Explicit MIME type middleware for static files
-app.use((req, res, next) => {
-    if (req.url.endsWith('.css')) {
-        res.type('text/css');
-    } else if (req.url.endsWith('.js')) {
-        res.type('text/javascript');
-    } else if (req.url.endsWith('.html')) {
-        res.type('text/html');
-    } else if (req.url.endsWith('.json')) {
-        res.type('application/json');
-    }
-    next();
-});
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('.'));
+
+// Serve static files with proper MIME types and cache control
+app.use(express.static('.', {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        } else if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+        } else if (path.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        }
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+}));
 
 app.use(session({
     secret: 'ecommerce-secret-key',
