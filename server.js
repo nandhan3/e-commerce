@@ -16,24 +16,32 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
 let supabase = null;
 if (SUPABASE_URL && SUPABASE_KEY) {
-    try {
-        supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    } catch (err) {
-        console.warn('Supabase client initialization error:', err.message);
+    // validate URL begins with http/https before creating client
+    if (!/^https?:\/\//i.test(SUPABASE_URL)) {
+        console.warn('Supabase client initialization warning: SUPABASE_URL does not look like a http(s) URL');
+    } else {
+        try {
+            supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (err) {
+            console.warn('Supabase client initialization error:', err.message);
+        }
     }
-} else {
-    console.warn('Supabase not configured: set SUPABASE_URL and SUPABASE_KEY in environment');
-}
+} // else: supabase vars missing - don't warn to keep local dev clean
+
 
 // Optional: direct Postgres connection for executing arbitrary (or limited) SQL against the Supabase DB.
 // To enable, set SUPABASE_DB_URL (postgres connection string) and SUPABASE_SERVICE_ROLE (for logging/checking purpose).
 const { Pool } = require('pg');
 let pgPool = null;
 if (process.env.SUPABASE_DB_URL && process.env.SUPABASE_SERVICE_ROLE) {
-    pgPool = new Pool({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
-} else {
-    console.warn('Postgres pool not configured: set SUPABASE_DB_URL and SUPABASE_SERVICE_ROLE in environment to enable SQL execution');
-}
+    // only attempt if both variables are non-empty and URL looks valid
+    if (/^postgres(?:ql)?:\/\//i.test(process.env.SUPABASE_DB_URL)) {
+        pgPool = new Pool({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
+    } else {
+        console.warn('Postgres pool warning: SUPABASE_DB_URL does not look like a postgres connection string');
+    }
+} // otherwise quietly skip; user can add later
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
