@@ -1,48 +1,10 @@
 const express = require('express');
 const mysql = require('mysql2');
-const bcrypt = require('bcryptjs');
+// bcrypt removed - using plain text passwords
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const session = require('express-session');
 const path = require('path');
-
-// Load environment variables from .env (user should create .env with SUPABASE_URL and SUPABASE_KEY)
-require('dotenv').config();
-
-const { createClient } = require('@supabase/supabase-js');
-
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
-
-let supabase = null;
-if (SUPABASE_URL && SUPABASE_KEY) {
-    let sanitizedUrl = SUPABASE_URL;
-    // if the user forgot protocol, add https:// automatically
-    if (!/^https?:\/\//i.test(sanitizedUrl)) {
-        console.warn('Supabase client initialization warning: SUPABASE_URL missing http(s) prefix, adding https://');
-        sanitizedUrl = 'https://' + sanitizedUrl;
-    }
-    try {
-        supabase = createClient(sanitizedUrl, SUPABASE_KEY);
-    } catch (err) {
-        console.warn('Supabase client initialization error:', err.message);
-    }
-} // else: supabase vars missing - don't warn to keep local dev clean
-
-
-// Optional: direct Postgres connection for executing arbitrary (or limited) SQL against the Supabase DB.
-// To enable, set SUPABASE_DB_URL (postgres connection string) and SUPABASE_SERVICE_ROLE (for logging/checking purpose).
-const { Pool } = require('pg');
-let pgPool = null;
-if (process.env.SUPABASE_DB_URL && process.env.SUPABASE_SERVICE_ROLE) {
-    // only attempt if both variables are non-empty and URL looks valid
-    if (/^postgres(?:ql)?:\/\//i.test(process.env.SUPABASE_DB_URL)) {
-        pgPool = new Pool({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
-    } else {
-        console.warn('Postgres pool warning: SUPABASE_DB_URL does not look like a postgres connection string');
-    }
-} // otherwise quietly skip; user can add later
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,26 +13,12 @@ app.use(cors({
     origin: ['http://localhost:3000', 'http://localhost:5500', 'http://localhost:8080', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://127.0.0.1:8080'],
     credentials: true
 }));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files with proper MIME types and cache control
-app.use(express.static('.', {
-    setHeaders: (res, path) => {
-        if (path.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css; charset=utf-8');
-        } else if (path.endsWith('.js')) {
-            res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
-        } else if (path.endsWith('.html')) {
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        }
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    }
-}));
+app.use(express.static('.'));
 
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'ecommerce-secret-key',
+    secret: 'ecommerce-secret-key',
     resave: true,
     saveUninitialized: true,
     cookie: { 
@@ -82,10 +30,10 @@ app.use(session({
 }));
 
 const dbConfig = {
-    host: process.env.MYSQL_HOST || 'localhost',
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    database: process.env.MYSQL_DATABASE || 'ecommerce_db',
+    host: process.env.MYSQL_HOST || 'sql205.infinityfree.com',
+    user: process.env.MYSQL_USER || 'if0_41276871',
+    password: process.env.MYSQL_PASSWORD || 'Nandhan123',
+    database: process.env.MYSQL_DATABASE || 'if0_41276871_ecommerce_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -93,7 +41,7 @@ const dbConfig = {
 
 const pool = mysql.createPool(dbConfig);
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ecommerce-jwt-secret';
+const JWT_SECRET = 'ecommerce-jwt-secret';
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -113,6 +61,10 @@ const authenticateToken = (req, res, next) => {
 };
 
 app.get('/api/check-session', (req, res) => {
+    console.log('Session check - Session ID:', req.sessionID);
+    console.log('Session check - Session:', req.session);
+    console.log('Session check - User:', req.session.user);
+    
     if (req.session.user) {
         res.json({
             logged_in: true,
@@ -160,13 +112,13 @@ app.post('/api/signup', async (req, res) => {
         }
 
 
-        // Hash password with bcrypt before storing
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Store password in plain text (no hashing)
+
 
         const result = await new Promise((resolve, reject) => {
             pool.query(
                 'INSERT INTO users (name, userid, password, user_type) VALUES (?, ?, ?, ?)',
-                [name, userid, hashedPassword, user_type],
+                [name, userid, password, user_type],
                 (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows);
@@ -195,8 +147,10 @@ app.post('/api/login', async (req, res) => {
         }
 
 
+        console.log('Attempting to query database for user:', userid, user_type);
         let users;
         try {
+
             const query = 'SELECT * FROM users WHERE userid = ? AND user_type = ?';
             const result = await new Promise((resolve, reject) => {
                 pool.query(query, [userid, user_type], (err, rows) => {
@@ -205,9 +159,12 @@ app.post('/api/login', async (req, res) => {
                 });
             });
             users = result;
+            console.log('Database query result:', users);
         } catch (dbError) {
-            console.error('Database query error:', dbError.message);
-            return res.json({ success: false, message: 'Database query failed' });
+            console.error('Database query error:', dbError);
+            console.error('Error details:', dbError.message);
+            console.error('Error code:', dbError.code);
+            return res.json({ success: false, message: 'Database query failed: ' + dbError.message });
         }
 
         if (users.length === 0) {
@@ -216,8 +173,10 @@ app.post('/api/login', async (req, res) => {
 
         const user = users[0];
 
-        // Compare password using bcrypt
-        const validPassword = await bcrypt.compare(password, user.password);
+
+        console.log('Comparing password:', password, 'with stored password:', user.password);
+        const validPassword = (password === user.password);
+        console.log('Password valid:', validPassword);
         if (!validPassword) {
             return res.json({ success: false, message: 'Invalid password' });
         }
@@ -242,8 +201,13 @@ app.post('/api/login', async (req, res) => {
         req.session.save((err) => {
             if (err) {
                 console.error('Session save error:', err);
+            } else {
+                console.log('Session saved successfully');
             }
         });
+        
+        console.log('Session after login:', req.session);
+        console.log('Session ID:', req.sessionID);
 
         res.json({
             success: true,
@@ -692,144 +656,41 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     }
 });
 
-// Orders endpoint - get customer order history
-app.get('/api/orders', authenticateToken, async (req, res) => {
-    try {
-        if (req.user.user_type !== 'customer') {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        const orders = await new Promise((resolve, reject) => {
-            pool.query(`
-                SELECT o.id, o.total_amount, o.status, o.order_date,
-                       JSON_ARRAYAGG(
-                           JSON_OBJECT(
-                               'product_name', p.name,
-                               'quantity', oi.quantity,
-                               'price', oi.price
-                           )
-                       ) as items
-                FROM orders o
-                LEFT JOIN order_items oi ON o.id = oi.order_id
-                LEFT JOIN products p ON oi.product_id = p.id
-                WHERE o.customer_id = ?
-                GROUP BY o.id
-                ORDER BY o.order_date DESC
-            `, [req.user.id], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-
-        // Parse JSON items string if needed
-        const parsedOrders = orders.map(order => ({
-            ...order,
-            items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items
-        }));
-
-        res.json({ success: true, orders: parsedOrders });
-    } catch (error) {
-        console.error('Get orders error:', error);
-        res.json({ success: false, message: 'Error fetching orders' });
-    }
-});
-
-// Supabase status endpoint — returns whether env vars are present and client initialized.
-app.get('/api/supabase/status', (req, res) => {
-    const configured = !!(SUPABASE_URL && SUPABASE_KEY && supabase);
-    res.json({ success: true, configured, url_present: !!SUPABASE_URL });
-});
-
-// Execute SQL against Supabase Postgres (server-side). This endpoint only allows SELECT queries by default.
-// Requires authentication via `authenticateToken` and a configured `SUPABASE_DB_URL`.
-app.post('/api/supabase/sql', authenticateToken, async (req, res) => {
-    try {
-        if (!pgPool) return res.status(500).json({ success: false, message: 'SQL execution not configured on server' });
-
-        // Only allow certain user types to run queries (adjust as needed)
-        if (!req.user || req.user.user_type !== 'vendor') {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        const { sql } = req.body;
-        if (!sql || typeof sql !== 'string') return res.status(400).json({ success: false, message: 'SQL query required' });
-
-        // Safety: only allow SELECT queries from the web SQL editor by default
-        const isSelect = /^\s*SELECT\b/i.test(sql);
-        if (!isSelect) return res.status(403).json({ success: false, message: 'Only SELECT queries are allowed via this editor' });
-
-        const client = await pgPool.connect();
-        try {
-            const result = await client.query(sql);
-            res.json({ success: true, rows: result.rows, fields: result.fields.map(f => f.name) });
-        } finally {
-            client.release();
-        }
-    } catch (err) {
-        console.error('Supabase SQL execution error:', err);
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
 
 app.get('/', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/login', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 app.get('/signup', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'signup.html'));
 });
 
 app.get('/vendor-dashboard', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'vendor-dashboard.html'));
 });
 
 app.get('/vendor-products', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'vendor-products.html'));
 });
 
 app.get('/customer-dashboard', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'customer-dashboard.html'));
 });
 
 app.get('/products', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'products.html'));
 });
 
 app.get('/cart', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'cart.html'));
 });
 
 app.get('/logout', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
     res.sendFile(path.join(__dirname, 'logout.html'));
-});
-
-app.get('/sql-editor', (req, res) => {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Content-Type', 'text/html');
-    res.sendFile(path.join(__dirname, 'sql-editor.html'));
 });
 
 
