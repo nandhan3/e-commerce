@@ -30,10 +30,10 @@ app.use(session({
 }));
 
 const dbConfig = {
-    host: process.env.MYSQL_HOST || 'sql205.infinityfree.com',
-    user: process.env.MYSQL_USER || 'if0_41276871',
-    password: process.env.MYSQL_PASSWORD || 'Nandhan123',
-    database: process.env.MYSQL_DATABASE || 'if0_41276871_ecommerce_db',
+    host: process.env.MYSQL_HOST || 'localhost',
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || '',
+    database: process.env.MYSQL_DATABASE || 'ecommerce_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
