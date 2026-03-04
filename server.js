@@ -1,5 +1,5 @@
 const express = require('express');
-const mysql = require('mysql2');
+const { Pool } = require('pg');
 // bcrypt removed - using plain text passwords
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
@@ -30,16 +30,66 @@ app.use(session({
 }));
 
 const dbConfig = {
-    host: process.env.MYSQL_HOST || 'db.ivfqeyogggffkhrdohdr.supabase.co',
-    user: process.env.MYSQL_USER || 'postgres',
-    password: process.env.MYSQL_PASSWORD || 'Nandhan@823',
-    database: process.env.MYSQL_DATABASE || 'postgres',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+    host: process.env.PGHOST || 'db.ivfqeyogggffkhrdohdr.supabase.co',
+    port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'your-supabase-password-here',
+    database: process.env.PGDATABASE || 'postgres',
+    ssl: { rejectUnauthorized: false }
 };
 
-const pool = mysql.createPool(dbConfig);
+// Wrap pg.Pool with a mysql2-like interface so the rest of the code works unchanged
+const pgPool = new Pool(dbConfig);
+
+const pool = {
+    query: (text, params, cb) => {
+        // params is optional in many call sites
+        if (typeof params === 'function') {
+            cb = params;
+            params = [];
+        }
+        pgPool.query(text, params, (err, result) => {
+            if (err) return cb(err);
+            cb(null, result.rows);
+        });
+    },
+    getConnection: (cb) => {
+        pgPool.connect((err, client, release) => {
+            if (err) return cb(err);
+
+            const connection = {
+                query: (text, params, cb2) => {
+                    if (typeof params === 'function') {
+                        cb2 = params;
+                        params = [];
+                    }
+                    client.query(text, params, (err2, result) => {
+                        if (err2) return cb2(err2);
+                        cb2(null, result.rows);
+                    });
+                },
+                beginTransaction: (cb2) => {
+                    client.query('BEGIN', cb2);
+                },
+                commit: (cb2) => {
+                    client.query('COMMIT', (err2) => {
+                        release();
+                        cb2(err2);
+                    });
+                },
+                rollback: (cb2) => {
+                    client.query('ROLLBACK', (err2) => {
+                        release();
+                        cb2(err2);
+                    });
+                },
+                release
+            };
+
+            cb(null, connection);
+        });
+    }
+};
 
 const JWT_SECRET = 'ecommerce-jwt-secret';
 
