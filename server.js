@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5500', 'http://localhost:8080', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://127.0.0.1:8080'],
+    origin: ['http://localhost:3000', 'http://localhost:5500', 'http://localhost:8080', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://127.0.0.1:8080', 'https://e-commerce-woad-nine-41.vercel.app'],
     credentials: true
 }));
 app.use(express.json());
@@ -21,8 +21,8 @@ app.use(session({
     secret: 'ecommerce-secret-key',
     resave: true,
     saveUninitialized: true,
-    cookie: { 
-        secure: false, 
+    cookie: {
+        secure: false,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax',
         httpOnly: true
@@ -30,10 +30,10 @@ app.use(session({
 }));
 
 const dbConfig = {
-    host: process.env.MYSQL_HOST || 'localhost',
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    database: process.env.MYSQL_DATABASE || 'ecommerce_db',
+    host: process.env.MYSQL_HOST || 'db.ivfqeyogggffkhrdohdr.supabase.co',
+    user: process.env.MYSQL_USER || 'postgres',
+    password: process.env.MYSQL_PASSWORD || 'Nandhan@823',
+    database: process.env.MYSQL_DATABASE || 'postgres',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -46,7 +46,7 @@ const JWT_SECRET = 'ecommerce-jwt-secret';
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-    
+
     if (!token) {
         return res.status(401).json({ success: false, message: 'Access denied' });
     }
@@ -64,7 +64,7 @@ app.get('/api/check-session', (req, res) => {
     console.log('Session check - Session ID:', req.sessionID);
     console.log('Session check - Session:', req.session);
     console.log('Session check - User:', req.session.user);
-    
+
     if (req.session.user) {
         res.json({
             logged_in: true,
@@ -196,7 +196,7 @@ app.post('/api/login', async (req, res) => {
             user_type: user.user_type
         };
         req.session.token = token;
-        
+
         // Force session save
         req.session.save((err) => {
             if (err) {
@@ -205,7 +205,7 @@ app.post('/api/login', async (req, res) => {
                 console.log('Session saved successfully');
             }
         });
-        
+
         console.log('Session after login:', req.session);
         console.log('Session ID:', req.sessionID);
 
